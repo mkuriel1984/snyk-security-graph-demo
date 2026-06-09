@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import { Play, ZoomIn, ZoomOut, Maximize2, Download, RefreshCw } from 'lucide-react';
+import AssetDetailPanel from './AssetDetailPanel';
 
 // Register dagre layout
 if (typeof cytoscape !== 'undefined') {
@@ -19,42 +20,58 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
   const cyRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState({ nodes: 0, edges: 0, executionTime: '0ms' });
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
 
-  // Sample graph data for demo
+  // Enhanced sample graph data with more asset types
   const sampleGraphData = {
     nodes: [
       // Vulnerabilities
-      { data: { id: 'vuln-1', label: 'CVE-2021-44228\n(Log4Shell)', type: 'vulnerability', severity: 'critical' } },
-      { data: { id: 'vuln-2', label: 'CVE-2021-23337\n(Lodash)', type: 'vulnerability', severity: 'high' } },
+      { data: { id: 'vuln-1', label: 'CVE-2021-44228\n(Log4Shell)', type: 'vulnerability', severity: 'critical', environment: 'production' } },
+      { data: { id: 'vuln-2', label: 'CVE-2021-23337\n(Lodash)', type: 'vulnerability', severity: 'high', environment: 'production' } },
 
-      // Packages
-      { data: { id: 'pkg-1', label: 'log4j-core\n2.14.1', type: 'package', ecosystem: 'maven' } },
-      { data: { id: 'pkg-2', label: 'spring-core\n5.3.9', type: 'package', ecosystem: 'maven' } },
-      { data: { id: 'pkg-3', label: 'lodash\n4.17.19', type: 'package', ecosystem: 'npm' } },
-      { data: { id: 'pkg-4', label: 'express\n4.17.1', type: 'package', ecosystem: 'npm' } },
-      { data: { id: 'pkg-5', label: 'react\n17.0.2', type: 'package', ecosystem: 'npm' } },
+      // Packages & Dependencies
+      { data: { id: 'pkg-1', label: 'log4j-core\n2.14.1', type: 'package', ecosystem: 'maven', version: '2.14.1', assetType: 'package', environment: 'production' } },
+      { data: { id: 'pkg-2', label: 'spring-core\n5.3.9', type: 'dependency', ecosystem: 'maven', version: '5.3.9', assetType: 'dependency', environment: 'production' } },
+      { data: { id: 'pkg-3', label: 'lodash\n4.17.19', type: 'package', ecosystem: 'npm', version: '4.17.19', assetType: 'package', environment: 'production' } },
+      { data: { id: 'pkg-4', label: 'express\n4.17.1', type: 'dependency', ecosystem: 'npm', version: '4.17.1', assetType: 'dependency', environment: 'production' } },
+      { data: { id: 'pkg-5', label: 'react\n17.0.2', type: 'package', ecosystem: 'npm', version: '17.0.2', assetType: 'package', environment: 'development' } },
 
-      // Projects
-      { data: { id: 'proj-1', label: 'acme-api', type: 'project', risk: 'high' } },
-      { data: { id: 'proj-2', label: 'acme-frontend', type: 'project', risk: 'medium' } },
-      { data: { id: 'proj-3', label: 'techstart-api', type: 'project', risk: 'critical' } },
+      // Container Images
+      { data: { id: 'container-1', label: 'node:14-alpine', type: 'container-image', assetType: 'container-image', environment: 'production', risk: 'high' } },
+      { data: { id: 'container-2', label: 'nginx:1.21', type: 'container-image', assetType: 'container-image', environment: 'production', risk: 'medium' } },
+
+      // IaC Files
+      { data: { id: 'iac-1', label: 'terraform/main.tf', type: 'iac-file', assetType: 'iac-file', language: 'HCL', environment: 'production', risk: 'medium' } },
+      { data: { id: 'iac-2', label: 'k8s/deployment.yaml', type: 'iac-file', assetType: 'iac-file', language: 'YAML', environment: 'production', risk: 'low' } },
+
+      // Dockerfiles
+      { data: { id: 'dockerfile-1', label: 'Dockerfile', type: 'dockerfile', assetType: 'dockerfile', environment: 'production', risk: 'medium' } },
+
+      // Source Files
+      { data: { id: 'source-1', label: 'auth.ts', type: 'source-file', assetType: 'source-file', language: 'TypeScript', environment: 'production', risk: 'high' } },
+
+      // Projects (with environments)
+      { data: { id: 'proj-1', label: 'acme-api\n[PROD]', type: 'project', risk: 'high', environment: 'production', owner: 'Platform Team' } },
+      { data: { id: 'proj-2', label: 'acme-frontend\n[DEV]', type: 'project', risk: 'medium', environment: 'development', owner: 'Frontend Team' } },
+      { data: { id: 'proj-3', label: 'techstart-api\n[PROD]', type: 'project', risk: 'critical', environment: 'production', owner: 'Backend Team' } },
 
       // Organizations
       { data: { id: 'org-1', label: 'Acme Corp', type: 'organization' } },
       { data: { id: 'org-2', label: 'TechStart Inc', type: 'organization' } },
 
       // Secrets
-      { data: { id: 'secret-1', label: 'AWS Key\n(45d old)', type: 'secret', severity: 'critical' } },
+      { data: { id: 'secret-1', label: 'AWS Key\n(45d old)', type: 'secret', severity: 'critical', environment: 'production' } },
 
       // Repositories
-      { data: { id: 'repo-1', label: 'api-service', type: 'repository' } },
+      { data: { id: 'repo-1', label: 'acme-corp/api-service', type: 'repository', environment: 'production' } },
+      { data: { id: 'repo-2', label: 'acme-corp/frontend', type: 'repository', environment: 'development' } },
 
       // Services
-      { data: { id: 'svc-1', label: 'acme-api-prod', type: 'service', env: 'production' } },
+      { data: { id: 'svc-1', label: 'acme-api-prod', type: 'service', environment: 'production' } },
 
       // Cloud Resources
-      { data: { id: 'cloud-1', label: 'RDS Database', type: 'cloud', resource: 'rds' } },
-      { data: { id: 'cloud-2', label: 'S3 Bucket', type: 'cloud', resource: 's3' } },
+      { data: { id: 'cloud-1', label: 'RDS Database\n[PROD]', type: 'cloud', resource: 'rds', environment: 'production' } },
+      { data: { id: 'cloud-2', label: 'S3 Bucket\n[PROD]', type: 'cloud', resource: 's3', environment: 'production' } },
     ],
     edges: [
       // Vulnerability relationships
@@ -99,9 +116,15 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
           style: {
             'background-color': (ele: any) => {
               const type = ele.data('type');
+              const env = ele.data('environment');
               const colors: any = {
                 vulnerability: '#ef4444',
                 package: '#8b5cf6',
+                dependency: '#a78bfa',
+                'container-image': '#f97316',
+                'iac-file': '#14b8a6',
+                dockerfile: '#06b6d4',
+                'source-file': '#eab308',
                 project: '#3b82f6',
                 organization: '#10b981',
                 secret: '#f59e0b',
@@ -109,7 +132,14 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
                 service: '#06b6d4',
                 cloud: '#ec4899',
               };
-              return colors[type] || '#64748b';
+              let baseColor = colors[type] || '#64748b';
+
+              // Adjust brightness for dev environment
+              if (env === 'development') {
+                baseColor = baseColor + '80'; // Add transparency for dev
+              }
+
+              return baseColor;
             },
             'label': 'data(label)',
             'color': '#fff',
@@ -120,11 +150,27 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
             'text-max-width': '80px',
             'width': (ele: any) => {
               const type = ele.data('type');
-              return type === 'organization' ? 60 : type === 'vulnerability' ? 50 : 40;
+              if (type === 'organization') return 70;
+              if (type === 'vulnerability') return 55;
+              if (type === 'container-image') return 50;
+              if (type === 'iac-file' || type === 'dockerfile') return 45;
+              return 42;
             },
             'height': (ele: any) => {
               const type = ele.data('type');
-              return type === 'organization' ? 60 : type === 'vulnerability' ? 50 : 40;
+              if (type === 'organization') return 70;
+              if (type === 'vulnerability') return 55;
+              if (type === 'container-image') return 50;
+              if (type === 'iac-file' || type === 'dockerfile') return 45;
+              return 42;
+            },
+            'shape': (ele: any) => {
+              const type = ele.data('type');
+              if (type === 'organization') return 'diamond';
+              if (type === 'container-image') return 'hexagon';
+              if (type === 'iac-file' || type === 'dockerfile') return 'rectangle';
+              if (type === 'cloud') return 'round-rectangle';
+              return 'ellipse';
             },
             'border-width': 2,
             'border-color': (ele: any) => {
@@ -202,7 +248,18 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
     // Event handlers
     cy.on('tap', 'node', (evt: any) => {
       const node = evt.target;
-      onNodeSelect(node.data());
+      const nodeData = node.data();
+
+      // Open detail panel
+      setSelectedAsset({
+        ...nodeData,
+        owner: nodeData.owner || 'Platform Team',
+        repository: nodeData.type === 'package' ? 'maven-central' : nodeData.type === 'container-image' ? 'docker.io' : undefined,
+        path: nodeData.type === 'iac-file' ? nodeData.label : nodeData.type === 'dockerfile' ? './Dockerfile' : undefined,
+        lastScanned: '2 hours ago',
+      });
+
+      onNodeSelect(nodeData);
 
       // Highlight connected nodes
       cy.elements().removeClass('highlighted');
@@ -243,9 +300,10 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
   };
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 shadow-xl overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-900/50">
+    <div className="relative">
+      <div className="bg-slate-800 rounded-lg border border-slate-700 shadow-xl overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-900/50">
         <div className="flex items-center gap-4">
           <h3 className="font-semibold text-white">Security Graph Visualization</h3>
           <div className="flex items-center gap-2 text-sm">
@@ -307,7 +365,7 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
 
       {/* Legend */}
       <div className="px-4 py-3 border-t border-slate-700 bg-slate-900/50">
-        <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex flex-wrap gap-3 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500" />
             <span className="text-slate-400">Vulnerability</span>
@@ -317,27 +375,55 @@ export default function GraphVisualization({ data, selectedQuery, onNodeSelect }
             <span className="text-slate-400">Package</span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-purple-400" />
+            <span className="text-slate-400">Dependency</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-orange-500" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+            <span className="text-slate-400">Container</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-teal-500" />
+            <span className="text-slate-400">IaC File</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-cyan-500" />
+            <span className="text-slate-400">Dockerfile</span>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500" />
             <span className="text-slate-400">Project</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <div className="w-3 h-3 bg-green-500" style={{ transform: 'rotate(45deg)' }} />
             <span className="text-slate-400">Organization</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <div className="w-3 h-3 rounded-full bg-amber-500" />
             <span className="text-slate-400">Secret</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-cyan-500" />
-            <span className="text-slate-400">Service</span>
+            <div className="w-3 h-3 rounded-full bg-pink-500" />
+            <span className="text-slate-400">Cloud</span>
+          </div>
+          <div className="text-slate-600 px-2">|</div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full border-2 border-red-500" />
+            <span className="text-slate-400">Production</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-pink-500" />
-            <span className="text-slate-400">Cloud Resource</span>
+            <div className="w-3 h-3 rounded-full border-2 border-blue-500 opacity-50" />
+            <span className="text-slate-400">Development</span>
           </div>
         </div>
       </div>
+    </div>
+
+      {/* Asset Detail Panel */}
+      <AssetDetailPanel
+        asset={selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+      />
     </div>
   );
 }
