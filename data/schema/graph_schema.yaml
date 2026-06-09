@@ -1,0 +1,317 @@
+# Graph Schema for Snyk Security Graph
+# Defines how relational tables map to graph nodes and edges
+
+version: "1.0"
+
+# Node Types (Vertices)
+nodes:
+  - label: Organization
+    source:
+      table: organizations
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - slug: { column: slug, type: string }
+      - plan_type: { column: plan_type, type: string }
+      - created_at: { column: created_at, type: datetime }
+
+  - label: Project
+    source:
+      table: projects
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - origin: { column: origin, type: string }
+      - project_type: { column: project_type, type: string }
+      - branch: { column: branch, type: string }
+      - is_monitored: { column: is_monitored, type: boolean }
+      - created_at: { column: created_at, type: datetime }
+
+  - label: Repository
+    source:
+      table: repositories
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - full_name: { column: full_name, type: string }
+      - url: { column: url, type: string }
+      - default_branch: { column: default_branch, type: string }
+      - is_private: { column: is_private, type: boolean }
+
+  - label: Package
+    source:
+      table: packages
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - version: { column: version, type: string }
+      - ecosystem: { column: ecosystem, type: string }
+      - package_url: { column: package_url, type: string }
+
+  - label: Vulnerability
+    source:
+      table: vulnerabilities
+      primary_key: id
+    properties:
+      - cve_id: { column: cve_id, type: string }
+      - snyk_id: { column: snyk_id, type: string }
+      - title: { column: title, type: string }
+      - severity: { column: severity, type: string }
+      - cvss_score: { column: cvss_score, type: float }
+      - exploit_maturity: { column: exploit_maturity, type: string }
+      - published_at: { column: published_at, type: datetime }
+
+  - label: License
+    source:
+      table: licenses
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - spdx_id: { column: spdx_id, type: string }
+      - category: { column: category, type: string }
+      - risk_level: { column: risk_level, type: string }
+      - osi_approved: { column: osi_approved, type: boolean }
+
+  - label: Secret
+    source:
+      table: secrets
+      primary_key: id
+    properties:
+      - secret_type: { column: secret_type, type: string }
+      - fingerprint: { column: fingerprint, type: string }
+      - status: { column: status, type: string }
+      - severity: { column: severity, type: string }
+      - age_days: { column: age_days, type: int }
+      - last_seen_at: { column: last_seen_at, type: datetime }
+
+  - label: Service
+    source:
+      table: services
+      primary_key: id
+    properties:
+      - name: { column: name, type: string }
+      - environment: { column: environment, type: string }
+      - service_type: { column: service_type, type: string }
+
+  - label: CloudResource
+    source:
+      table: cloud_resources
+      primary_key: id
+    properties:
+      - resource_arn: { column: resource_arn, type: string }
+      - resource_type: { column: resource_type, type: string }
+      - environment: { column: environment, type: string }
+      - region: { column: region, type: string }
+      - tags: { column: tags, type: json }
+
+  - label: ContainerImage
+    source:
+      table: container_images
+      primary_key: id
+    properties:
+      - registry: { column: registry, type: string }
+      - repository: { column: repository, type: string }
+      - tag: { column: tag, type: string }
+      - digest: { column: digest, type: string }
+      - base_image: { column: base_image, type: string }
+
+  - label: Issue
+    source:
+      table: issues
+      primary_key: id
+    properties:
+      - issue_type: { column: issue_type, type: string }
+      - severity: { column: severity, type: string }
+      - title: { column: title, type: string }
+      - status: { column: status, type: string }
+      - priority_score: { column: priority_score, type: int }
+      - introduced_date: { column: introduced_date, type: datetime }
+
+# Edge Types (Relationships)
+edges:
+  - label: OWNS
+    source:
+      table: projects
+      from_column: organization_id
+      from_node: Organization
+      to_column: id
+      to_node: Project
+    direction: outgoing
+
+  - label: BELONGS_TO
+    source:
+      table: repositories
+      from_column: organization_id
+      from_node: Organization
+      to_column: id
+      to_node: Repository
+    direction: outgoing
+
+  - label: SOURCE_FROM
+    source:
+      table: project_repositories
+      join:
+        - projects ON project_repositories.project_id = projects.id
+        - repositories ON project_repositories.repository_id = repositories.id
+      from_node: Project
+      to_node: Repository
+    direction: outgoing
+
+  - label: USES
+    source:
+      table: project_packages
+      join:
+        - projects ON project_packages.project_id = projects.id
+        - packages ON project_packages.package_id = packages.id
+      from_node: Project
+      to_node: Package
+    properties:
+      - is_direct: { column: is_direct, type: boolean }
+    direction: outgoing
+
+  - label: DEPENDENCY
+    source:
+      table: package_dependencies
+      from_column: parent_package_id
+      from_node: Package
+      to_column: child_package_id
+      to_node: Package
+    properties:
+      - dependency_type: { column: dependency_type, type: string }
+      - scope: { column: scope, type: string }
+    direction: outgoing
+
+  - label: AFFECTS
+    source:
+      table: package_vulnerabilities
+      from_column: vulnerability_id
+      from_node: Vulnerability
+      to_column: package_id
+      to_node: Package
+    properties:
+      - is_fixable: { column: is_fixable, type: boolean }
+      - fixed_in_version: { column: fixed_in_version, type: string }
+    direction: outgoing
+
+  - label: HAS_LICENSE
+    source:
+      table: packages
+      from_column: license_id
+      from_node: Package
+      to_column: id
+      to_node: License
+    direction: outgoing
+
+  - label: HAS_ISSUE
+    source:
+      table: issues
+      from_column: project_id
+      from_node: Project
+      to_column: id
+      to_node: Issue
+    direction: outgoing
+
+  - label: VULNERABILITY
+    source:
+      table: issue_vulnerabilities
+      join:
+        - issues ON issue_vulnerabilities.issue_id = issues.id
+        - vulnerabilities ON issue_vulnerabilities.vulnerability_id = vulnerabilities.id
+      from_node: Issue
+      to_node: Vulnerability
+    direction: outgoing
+
+  - label: LICENSE_VIOLATION
+    source:
+      table: issue_licenses
+      join:
+        - issues ON issue_licenses.issue_id = issues.id
+        - licenses ON issue_licenses.license_id = licenses.id
+      from_node: Issue
+      to_node: License
+    direction: outgoing
+
+  - label: SECRET
+    source:
+      table: issue_secrets
+      join:
+        - issues ON issue_secrets.issue_id = issues.id
+        - secrets ON issue_secrets.secret_id = secrets.id
+      from_node: Issue
+      to_node: Secret
+    direction: outgoing
+
+  - label: FOUND_IN
+    source:
+      table: repository_secrets
+      from_column: secret_id
+      from_node: Secret
+      to_column: repository_id
+      to_node: Repository
+    properties:
+      - file_path: { column: file_path, type: string }
+      - line_number: { column: line_number, type: int }
+      - commit_sha: { column: commit_sha, type: string }
+    direction: outgoing
+
+  - label: DEPLOYS_TO
+    source:
+      table: service_deployments
+      from_column: repository_id
+      from_node: Repository
+      to_column: service_id
+      to_node: Service
+    properties:
+      - deployed_at: { column: deployed_at, type: datetime }
+    direction: outgoing
+
+  - label: ACCESSES
+    source:
+      table: service_cloud_access
+      from_column: service_id
+      from_node: Service
+      to_column: cloud_resource_id
+      to_node: CloudResource
+    properties:
+      - access_type: { column: access_type, type: string }
+    direction: outgoing
+
+  - label: RUNS
+    source:
+      table: service_containers
+      from_column: service_id
+      from_node: Service
+      to_column: container_image_id
+      to_node: ContainerImage
+    properties:
+      - deployed_at: { column: deployed_at, type: datetime }
+    direction: outgoing
+
+  - label: CONTAINER_RISK
+    source:
+      table: issue_containers
+      join:
+        - issues ON issue_containers.issue_id = issues.id
+        - container_images ON issue_containers.container_image_id = container_images.id
+      from_node: Issue
+      to_node: ContainerImage
+    direction: outgoing
+
+# Graph Traversal Optimizations
+indexes:
+  # Multi-hop traversal indexes
+  - name: idx_blast_radius
+    pattern: (Vulnerability)-[:AFFECTS]->(Package)<-[:DEPENDENCY*]-(Package)<-[:USES]-(Project)
+    materialized: false
+
+  - name: idx_license_propagation
+    pattern: (Project)-[:USES]->(Package)-[:DEPENDENCY*]->(Package)-[:HAS_LICENSE]->(License)
+    materialized: false
+
+  - name: idx_secret_exposure
+    pattern: (Secret)-[:FOUND_IN]->(Repository)-[:DEPLOYS_TO]->(Service)-[:ACCESSES]->(CloudResource)
+    materialized: false
+
+  - name: idx_code_to_cloud
+    pattern: (Issue)-[:SECRET|VULNERABILITY]->(x)<-[:FOUND_IN|AFFECTS]-(Repository)-[:DEPLOYS_TO]->(Service)-[:RUNS]->(ContainerImage)
+    materialized: false
