@@ -50,6 +50,20 @@ services:
       - ./graph-engine:/app/graph-engine
       - ./data:/app/data
 
+  # Interactive Frontend UI
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: snyk-graph-ui
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - graph-engine
+
   # Optional: Grafana for performance monitoring
   grafana:
     image: grafana/grafana:latest
