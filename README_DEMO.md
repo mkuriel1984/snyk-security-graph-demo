@@ -83,9 +83,14 @@ open http://localhost:3001
 ### **1. Security Graph View**
 
 Navigate to the **Security Graph** tab to:
-- View real-time interactive graph visualization
+- View real-time interactive graph visualization with 20+ node types
 - Explore relationships between vulnerabilities, packages, projects, and organizations
-- Click on nodes to see detailed information
+- **Click on any node to open detailed asset panel** showing:
+  - Asset information (type, environment, owner, version, language)
+  - Security posture with issue counts (critical/high/medium/low)
+  - Detailed security findings with severity badges
+  - Snyk product badges (Open Source, Container, IaC, Code, EVO)
+- Distinguish between **production** (solid) and **development** (transparent) environments
 - Zoom, pan, and navigate the graph
 
 **Controls:**
