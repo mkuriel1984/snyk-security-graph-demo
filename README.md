@@ -77,30 +77,37 @@ snyk-security-graph-demo/
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Docker & Docker Compose
-- DuckDB (for local warehouse)
-- Postgres 16+ (for OLTP data)
-
-### Setup
+### **🎯 Interactive Web Demo** (Recommended)
 
 ```bash
-# 1. Clone repository
+# Clone repository
 git clone https://github.com/mkuriel1984/snyk-security-graph-demo.git
 cd snyk-security-graph-demo
 
-# 2. Start data infrastructure
-docker-compose up -d
+# One-command start (launches full-stack demo)
+./start-demo.sh
 
-# 3. Load mock Snyk data
-python scripts/load_data.py
+# Open browser
+open http://localhost:3001
+```
 
-# 4. Run graph engine
-python -m graph_engine.server
+**What you get:**
+- 🌐 Interactive graph visualization (Cytoscape.js)
+- 🎨 Modern web UI with 4 views (Graph, Insights, EVO Assets, AI Security)
+- 📊 Real-time security queries
+- 🚀 Production-ready demo for presentations
 
-# 5. Execute demo queries
-python demos/run_all_demos.py
+### **Command Line Demo**
+
+```bash
+# Start data infrastructure only
+docker-compose up -d postgres
+
+# Load sample data
+docker exec -i snyk-graph-postgres psql -U snyk -d snyk_demo < scripts/load_sample_data.sql
+
+# Run graph queries via SQL
+docker exec -i snyk-graph-postgres psql -U snyk -d snyk_demo < demos/full_demo.sql
 ```
 
 ## Demo Scenarios
